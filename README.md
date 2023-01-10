@@ -180,7 +180,128 @@ por ejemplo:
 
 Si usabamos antMatches tendriamos que usar los wildcards *
 
-## IN MEMORY AUTHENTICATION PROVIDER
+### IN MEMORY AUTHENTICATION PROVIDER
+
+
+EL proceso es el siguiente 
+
+![image](https://user-images.githubusercontent.com/56406481/211657612-44dac4be-ca18-48cc-aa4c-8e35c08db16d.png)
+
+Tendremos la request del usuario que es interceptado por el filtro. Podremos tener varios filtros de la cadena "filter chain" y cada filter tendra un authetication manager encargado de la API y de implementar un servicio de authentication provider. Este provider es el encargado de validar la peticion dependiendo del tipo (En memoria, en base de datos, etc) colaborando con **User Detail Service** y **Password Enconder** este ultimo encargado de decodificar la contraseña. La respueta e retornada al fitro y si todo va bien, se pasa a guardar en el contexto de Spring el usuario autenticado.
+
+- **Authetication Filter**
+Tendra diferentes forma de implementacion (Autenticacion basica, Rememberme cookie, etc), podremos configurar de todo, desde como recibir las peticiones y distintos timos de implementacion.
+
+* **Authetication Manager**
+Es la interfaz utilizada por el filter
+
++ **Authetication Provider**
+Es la implementacion de la autenticacion de los usuarios, lo puede hacer de diferentes maneras en memoria, en base de datos, buscar en un archivo txt, etc.
+
++ **User Detail Service**
+Diferentes maneras de tomar y manejar la informacion del usuario
+
++ **Password encoder**
+Diferentes maneras de codificar/decodificar el passowrd
+
++ **Security context**
+Mantiene la informacion del usuario autenticado
+
+### IN MEMORY USER WITH USER DETAIL SERVICE
+
+**Esta es la peor manera de encarar esto** 
+
+Ahora dejaremos de usar la auto configuracion de spring y vamos a crear nuestros propios usuarios en memoria de JVM.
+
+Con esto podemos eliminar este usuario: 
+
+```
+spring.security.user.name=ian
+spring.security.user.password=jedi
+```
+Porque ya no sera manejado por spring, sino que manejaremos una autenticacion implementada por nostros en memoria haciendo uso del bean USER DETAIL SERVICE.
+
+![image](https://user-images.githubusercontent.com/56406481/211663272-cb54f24d-a55e-4e5a-ae75-f6de7462e692.png)
+
+En SecurityConfig.java implementamos el UserDetailService
+```
+    @Override
+    @Bean
+    protected UserDetailsService userDetailsService() {
+        UserDetails admin = User.withDefaultPasswordEncoder()
+                .username("ian")
+                .password("jedi")
+                .roles("ADMIN")
+                .build();
+
+        UserDetails user = User.withDefaultPasswordEncoder()
+                .username("user")
+                .password("password")
+                .roles("USER")
+                .build();
+
+
+
+        return new InMemoryUserDetailsManager(admin,user);
+    }
+```
+
+Aqui estamos indicando la estrategia de autenticacion, que es en memoria
+```
+ return new InMemoryUserDetailsManager(admin,user);
+```
+
+Este constructor, puede recibir varios USER y lo que hace es crearlos y guardarlos en el contexto de JVM
+```
+    public InMemoryUserDetailsManager(UserDetails... users) {
+        UserDetails[] var2 = users;
+        int var3 = users.length;
+
+        for(int var4 = 0; var4 < var3; ++var4) {
+            UserDetails user = var2[var4];
+            this.createUser(user);
+        }
+
+    }
+```
+
+
+**¿Como sabemos que guardara en el contexto de JVM?**
+
+Precisamente por el @Bean de UserDetailService, el cual es el encargado de mandar en el contexto a los usuarios autenticados. @Bean es una anotacion que permite que un metodo sea utilizado por todo el proyecto y su resultado es guardado en el contexto. 
+
+
+### IN MEMORY USER WITH FLUENT API
+
+
+Mejoraremos lo anterior, en lugar de usar User detail service, usamos el authetication manager, esta api que permite implementar memory authentication.
+
+En la clase de SecurityConfig.java
+```
+    @Override
+    protected void configure(AuthenticationManagerBuilder auth) throws Exception {
+        auth.inMemoryAuthentication()
+                .withUser("ian")
+                .password("{noop}jedi")
+                .roles("ADMIN")
+                .and()
+                .withUser("user")
+                .password("{noop}password")
+                .roles("USER");
+    }
+```
+
+Esta forma es mas elegante de hacer lo mismo.
+
+**{noop}** Es necesario implementarlo ahora, porque con el le indicamos a spring que no tenga en cuenta codificar las password, si no mandamos codificadas o no indicamos **{noop}** obtendremos un error de null. Si no queremos usar **{noop}** debemos si o si codificar las pass.
+
+
+
+
+
+
+
+
 
 
 
