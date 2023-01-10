@@ -296,6 +296,7 @@ Esta forma es mas elegante de hacer lo mismo.
 **{noop}** Es necesario implementarlo, porque con el le indicamos a spring que no tenga en cuenta algun servicio de codificacion para las contraseñas, si no mandamos codificadas o no indicamos **{noop}** obtendremos un error de null. Si no queremos usar **{noop}** debemos si o si codificar las pass.
 
 
+## PASSWORD SECURITY
 
 
 
