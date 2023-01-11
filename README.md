@@ -298,6 +298,68 @@ Esta forma es mas elegante de hacer lo mismo.
 
 ## PASSWORD SECURITY
 
+Para la encriptacion de contraseñas utilizamos hash. Hash es un algoritmo matematico aplicados a las contraseñas. Los hash pueden generarse a partir de la contraseña pero la contraseña no puede ser deducida de un password.
+
+Un problema es que el password siempre generara un mismo hash, pudiendo ser vunerado de alguna manera, es por ello que usamos el "password with salt" el cual consiste en concatenar el password con datos adicionales y luego recien ejecutar el hash. El Salt debe ser cualquier string random.
+
+Spring Security recomienta usar una forma adaptativa de funcion de codificacion como son : 
+
+
++ **BCrypt (Por default)**
+
++ **Pbkdf2**
+
++ **SCrypt**
+
+
+Para delegar la forma en que se encriptan las password usamos un @Bean en la clase SecurityConfig el cual, al sobreescribirlo cada vez que se setea el password se usara es forma de codificacion. 
+
+Esto ocurre porque, nuevamente, Spring security utiliza el PasswordEncoder que se encuentra en ese momento en el contexto de la app.
+
+En la clase de SecurityConfig.java
+```
+    @Bean
+    PasswordEncoder passwordEncoder(){
+        return NoOpPasswordEncoder.getInstance();
+    }
+```
+Haciendo esto, automaticamente se utiliza como metodo de encoder el NoOpPasswordEncoder.
+
+### MD5 HASH AND PASSWORD SALT
+
+Para una password siempre tendremos el mismo hash cuando este es encriptado. Por lo que necesitamos el salt, el valor random de string, para que esta contrasena sea mas segura. 
+
+![image](https://user-images.githubusercontent.com/56406481/211693337-4823f83d-bc32-49b4-bc40-fda8a0436f74.png)
+Como vemos la ultima salida es diferente y esto se logra gracias al string salt.
+
+
+Es un tipo de hash con una matematica y logica muy sencilla, genera siempre el mismo tipo de hash para una contrasena, por lo que no es recomendado su uso.
+
+### NOOP PASSWORD ENCODER
+
+NOOP, es no operation password, cuando codificamos devuelve el mismo valor del password. Es considerado una codificacion lo utilizamos cuando no queremos (momentanemente) usar una codificacion para nuestras contrasenas, pero no son nada recomendables en ambientes productivos. 
+
+
+
+### LDAP PASSWORD ENCODER
+
+Es una manera vieja de codificar las contrasenas. Esta completamente deprecado, aun asi en sistemas viejos esta forma de encriptar sigue vigente. 
+
+Esta manera de encriptar nos permite, a partir de una contrasena obtener diferentes hash luego de su encriptacion y esto es porque precisamente utilizan un string salt, es decir, un string aleatorio junto con la contrasena para poder realizar la encriptacion. 
+
+![image](https://user-images.githubusercontent.com/56406481/211694614-fca07c8f-8988-4f0d-a2fc-bda50e3bc906.png)
+![image](https://user-images.githubusercontent.com/56406481/211694645-afa04e58-0b5d-4453-b39b-85186e269897.png)
+
+
+
+### SHA-256 PASSWORD ENCODER
+
+
+
+
+
+
+
 
 
 
