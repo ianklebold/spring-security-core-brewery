@@ -354,19 +354,151 @@ Esta manera de encriptar nos permite, a partir de una contrasena obtener diferen
 
 ### SHA-256 PASSWORD ENCODER
 
+Utiliza un string aleatorio en su algoritmo de encriptacion para generar la password. 
+Es un metodo de encriptacion muy respetado por mas viejo que sea, utiliza un string adicional (secreta) y en base a ella realiza su encriptacion. 
+
+SHA-256 a su vez se caracteriza por ser muy rapido. 
 
 
+### BCRYPT
+
+Una de sus frotalezas es que opcionalmente podemos cambiar el strength o fortaleza de BCrypt. El valor que indiquemos llevara mayor tiempo (exponencial) de generar el hash password. Por default el valor es de 10.
+
+```
+@Bean
+PasswordEncoder passwordEncoder(){
+   return new BCryptPasswordEncoder(); //Por default utiliza 10
+}
+```
+
+### Delegation Password Encoder
+
+Ahora delegamos a una implementacion de spring la posibilidad de poder codificar las password sin la necesidad de indicarle cual usar.
 
 
+```
+    @Bean
+    PasswordEncoder passwordEncoder(){
+        return PasswordEncoderFactories.createDelegatingPasswordEncoder();
+    }
+```
+
+Dentro de createDelegatingPasswordEncoder tenemos
 
 
+```
+public class PasswordEncoderFactories {
+    public static PasswordEncoder createDelegatingPasswordEncoder() {
+        String encodingId = "bcrypt";
+        Map<String, PasswordEncoder> encoders = new HashMap();
+        encoders.put(encodingId, new BCryptPasswordEncoder());
+        encoders.put("ldap", new LdapShaPasswordEncoder());
+        encoders.put("MD4", new Md4PasswordEncoder());
+        encoders.put("MD5", new MessageDigestPasswordEncoder("MD5"));
+        encoders.put("noop", NoOpPasswordEncoder.getInstance());
+        encoders.put("pbkdf2", new Pbkdf2PasswordEncoder());
+        encoders.put("scrypt", new SCryptPasswordEncoder());
+        encoders.put("SHA-1", new MessageDigestPasswordEncoder("SHA-1"));
+        encoders.put("SHA-256", new MessageDigestPasswordEncoder("SHA-256"));
+        encoders.put("sha256", new StandardPasswordEncoder());
+        encoders.put("argon2", new Argon2PasswordEncoder());
+        return new DelegatingPasswordEncoder(encodingId, encoders);
+    }
 
+    private PasswordEncoderFactories() {
+    }
+}
+```
+Como vemos tenemos un map de varios algoritmos de encriptacion, de acuerdo a cual indiquemos que estamos por usar (Cuando seteamos las password) podemos encriptar nuestras contrasenas sin tener que explicitamente en el metodo passwordEncoder indicar cual se utilizara.
 
+Podemos crear un createDelegatingPasswordEncoder customizado, simplemente sobreescribiendo el metodo.
 
+### Custom Delegation Password Encoder
 
+Creamos una nueva clase e implementamos el metodo de manera estatica
+```
+public class SfgPasswordEncoderFactories{
 
+    public static PasswordEncoder createDelegatingPasswordEncoder() {
+        String encodingId = "bcrypt";
+        Map<String, PasswordEncoder> encoders = new HashMap();
+        encoders.put(encodingId, new BCryptPasswordEncoder());
+        encoders.put("ldap", new LdapShaPasswordEncoder());
+        encoders.put("scrypt", new SCryptPasswordEncoder());
+        encoders.put("sha256", new StandardPasswordEncoder());
+        return new DelegatingPasswordEncoder(encodingId, encoders);
+    }
 
+    //No se podra instanciar la clase
+    private SfgPasswordEncoderFactories(){}
 
+}
+```
 
+Spring ahora va a hacer uso de nuestra configuracion
+```
+    @Bean
+    PasswordEncoder passwordEncoder(){
+        return SfgPasswordEncoderFactories.createDelegatingPasswordEncoder();
+    }
+```
 
+## Custom Authentication Filter
+Para cada set de endpoints podemos establecer distintos filtros, estos pueden ser ya sea gestioandos por spring o customizados por nosotros.
+Podemos heredar de la clase AbstractAutheticationProcessingFilter distintos metodos y handlers que me permiten gestionar la autenticacion del usuario. 
 
+attemptAuthetication lo que va a hacer es recibir la request y response de la consulta que se hace. Del header vamos a extraer el username y password, generar un token con ellos y lo siguiente es enviar al Authetication maanager dicho token.
+
+```
+@Override
+    public Authentication attemptAuthentication(HttpServletRequest httpServletRequest, HttpServletResponse httpServletResponse) throws AuthenticationException, IOException, ServletException {
+        String userName = getUsername(httpServletRequest);
+        String password = getPassword(httpServletRequest);
+
+        if (userName == null){
+            userName = "";
+        }
+
+        if (password == null){
+            password = "";
+        }
+
+        log.debug("Authenticating User : " +userName );
+
+        UsernamePasswordAuthenticationToken token = new UsernamePasswordAuthenticationToken(userName, password);
+
+        return this.getAuthenticationManager().authenticate(token);
+    }
+```
+
+### Filter in Security Config
+
+Ahora debemos proveer la instancia del filtro que acabamos de crear
+
+```
+    public RestHeaderAuthFilter restHeaderAuthFilter(AuthenticationManager authenticationManager){
+        //Creamos la instancia del filtro de seguridad
+        RestHeaderAuthFilter filter = new RestHeaderAuthFilter(new AntPathRequestMatcher("/api/**"));
+
+        filter.setAuthenticationManager(authenticationManager);
+        return filter;
+    }
+```
+
+Lo siguiente es añadir este filter a filter chain
+
+AddFIlterBefore, antes de UsernamePasswordAutheticationFilter que es un filtro de spring, entonces de esta forma añadimos un nuevo filtro de autenticacion para los endpoints " /api/** "
+```
+    @Override
+    protected void configure(HttpSecurity http) throws Exception {
+
+        http.addFilterBefore(restHeaderAuthFilter(authenticationManager()), 
+                UsernamePasswordAuthenticationFilter.class);
+```
+### Custom after authetication
+
+                
+                
+                
+                
+                
