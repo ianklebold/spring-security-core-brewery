@@ -495,10 +495,58 @@ AddFIlterBefore, antes de UsernamePasswordAutheticationFilter que es un filtro d
         http.addFilterBefore(restHeaderAuthFilter(authenticationManager()), 
                 UsernamePasswordAuthenticationFilter.class);
 ```
-### Custom after authetication
+En caso de ser exitoso, lo siguiente es responder con exito a la autenticacion, seteando en el contexto de **Security Context**, esto es manejado a partir de un metodo que podemos sobreescribir
 
-                
-                
-                
-                
+```
+SecurityContextHolder.getContext().setAuthentication(authResult);
+```
+
+### Custom after authetication
+Si el filtro falla por nulo, entonces lo intenta en el proximo si es que existe. 
+
+En caso de mandar unas credenciales erroneas, automaticamente se corta el filtro y retorna un error, este es un escenario diferente al anterior mencionado. Para antender estos casos tenemos un metodo que podemos sobreescribir.
+
+```
+        try{
+                    Authentication authResult;       
+                    authResult = this.attemptAuthentication(request, response);
+                    if(authResult == null){
+                        //Si la autenticacion no es exitosa, entonces intentamos en el siguiente filtro
+                        chain.doFilter(req,res);
+                    }else {
+                        this.successfulAuthentication(request, response, chain, authResult);
+                    }
+                }catch (AuthenticationException e){
+                    //Tratamos el caso de mala autenticacion
+                }
+```
+
+Limpiamos el contexto
+```
+SecurityContextHolder.clearContext();
+```
+
+Respondemos con un UNAUTHORIZED 
+```                
+response.sendError(HttpStatus.UNAUTHORIZED.value(), HttpStatus.UNAUTHORIZED.getReasonPhrase());                
+```              
+
+## DATABASE AUTHENTICATION
+
+Anteriormente solamente estabamos alojando las autenticaciones en memoria, sin embargo las aplicaciones utilizan bases de datos que alojan datos de los usuarios de la aplicacion. Spring security aloja entidades con unos campos especiales para manejar la autenticacion de los usuarios, estos objetos son llamados **USER DETAILS** el cual no es mas que un serializable, un objeto inmutable que le sirve a spring security.
+
+En este caso, vamos a manejar nuestras propias entidades de usuarios del sistema, con campos adicionales pero a la hora de autenticarnos lo mapearemos con **USER DETAILS**. 
+
+
+
+
+
+
+
+
+
+
+
+
+
                 
