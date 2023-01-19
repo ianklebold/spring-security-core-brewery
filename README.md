@@ -704,7 +704,7 @@ Notemos que en este caso tenemos un objeto user creado por nosotros, a la hora d
 Notemos como tenemos que si o si mappear las autorizaciones creadas por nosotros al tipo **SimpleGrantedAuthority**
 
 
-Con esto ya tenemos implementada UserDetailsService como SecurityManager, **IMPORTANTE** no tener **configure(AuthenticationManagerBuilder auth)** porque si overrideamos eso, utiliza el SecurityManager que nosotros implementemos pero como  UserDetailsService es el por default, no es necesario hacerlo.
+Con esto ya tenemos implementada UserDetailsService como SecurityManager, **IMPORTANTE** no tener **configure(AuthenticationManagerBuilder auth)** en **SecurityConfig.java** porque si overrideamos eso, utiliza el SecurityManager que nosotros implementemos pero como  UserDetailsService es el por default, no es necesario hacerlo.
 
 
 
