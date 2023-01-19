@@ -538,6 +538,186 @@ Anteriormente solamente estabamos alojando las autenticaciones en memoria, sin e
 En este caso, vamos a manejar nuestras propias entidades de usuarios del sistema, con campos adicionales pero a la hora de autenticarnos lo mapearemos con **USER DETAILS**. 
 
 
+Podemos crear una clase de usuario, completamente personalizada ya sea extendiendo del objeto User que nos proporciona Spring o creandola desde cero.
+
+**User.java (Creada por nosotros)**
+```  
+@Setter
+@Getter
+@AllArgsConstructor
+@NoArgsConstructor
+@Builder
+@Entity
+public class User {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.AUTO)
+    private Long id;
+    private String username;
+    private String password;
+
+    @Singular
+    @ManyToMany(cascade = CascadeType.MERGE)
+    @JoinTable(name = "user_authority",
+            joinColumns = {@JoinColumn(name = "USER_ID",referencedColumnName = "ID")},
+            inverseJoinColumns = {@JoinColumn(name = "AUTHORITY_ID",referencedColumnName = "ID")}
+    )
+    private Set<Authority> authorities;
+
+    @Builder.Default
+    private Boolean accountNonExpired = true;
+
+    @Builder.Default
+    private Boolean accountNonLocked = true;
+
+    @Builder.Default
+    private Boolean credentialsNonExpired = true;
+
+    @Builder.Default
+    private Boolean enable = true;
+}
+```  
+
+Las authorities son aquellas que nos dan los permisos de acuerdo al ROL, tambien tenemos un Authority proporcionada por spring, pero podemos crear la nuestra.
+
+**Authority.java (Creada por nosotros)**
+``` 
+@Setter
+@Getter
+@AllArgsConstructor
+@NoArgsConstructor
+@Builder
+@Entity
+public class Authority {
+    @Id
+    @GeneratedValue(strategy = GenerationType.AUTO)
+    private Long id;
+    private String role;
+
+    @ManyToMany(mappedBy = "authorities")
+    private Set<User> users;
+
+}
+``` 
+
+Creamos los repository que les corresponde a cada uno y vamos ahora a cargar unos datos de prueba.
+
+**DefaultBreweryLoader.java**
+``` 
+    private void loadUsersData(){
+        if(userRepository.count() == 0){
+
+            Optional<Authority> authorityAdmin = authorityRepository.findByRole("ADMIN");
+
+            if (authorityAdmin.isPresent())
+            {
+                User springUser = User.builder()
+                        .username("spring")
+                        .password(passwordEncoder.encode("pass"))
+                        .authority(authorityAdmin.get())
+                        .build();
+
+                userRepository.save(springUser);
+            }
+
+            Optional<Authority> authorityUser = authorityRepository.findByRole("USER");
+
+            if(authorityUser.isPresent())
+            {
+                User userUser = User.builder()
+                        .username("user")
+                        .password(passwordEncoder.encode("pass"))
+                        .authority(authorityUser.get())
+                        .build();
+
+                userRepository.save(userUser);
+            }
+
+
+            Optional<Authority> authorityCustomer = authorityRepository.findByRole("CUSTOMER");
+            if(authorityCustomer.isPresent())
+            {
+                User scottUser = User.builder()
+                        .username("scott")
+                        .password(passwordEncoder.encode("pass"))
+                        .authority(authorityCustomer.get())
+                        .build();
+
+                userRepository.save(scottUser);
+            }
+
+        }
+    }
+``` 
+
+Una vez creado usuarios (Con passwords codificados) y dadas su authorities pasamos a crear SecurityManager que es **UserDetailService**
+
+
+
+UserDetailService es un tipo de autenticacion que se basa en el UserDetail que se usa para autenticar usuarios que son creados por nostros y alojados en neustras base de datos. La logica es la siguiente, es tomar el usuario que intenta autenticarse, mappearlo al objeto de Spring security y generar la autenticacion que provee Spring.
+
+Recordemos que el SecurityManager por default es **UserDetailService**.
+
+
+**UserDetailService.java**
+``` 
+@RequiredArgsConstructor
+@Service
+public class JpaUserDetailsService implements UserDetailsService {
+
+
+    private final UserRepository userRepository;
+
+    @Override
+    @Transactional
+    public UserDetails loadUserByUsername(String s) throws UsernameNotFoundException {
+        User user = userRepository.findByUsername(s).orElseThrow(() -> {
+            return new UsernameNotFoundException("User name :"+s+" not found");
+        });
+
+
+
+
+        return new org.springframework.security.core.userdetails.User(user.getUsername(),user.getPassword(),
+                user.getEnable(),user.getAccountNonExpired(),user.getCredentialsNonExpired(),
+                user.getAccountNonLocked(),convertToSpringAuthorities(user.getAuthorities()));
+
+    }
+
+    private Collection<? extends GrantedAuthority> convertToSpringAuthorities(Set<Authority> authorities) {
+        if(authorities != null && authorities.size() > 0){
+            return authorities.stream()
+                    .map(Authority::getRole)
+                    .map(SimpleGrantedAuthority::new)
+                    .collect(Collectors.toList());
+        }else{
+            return new HashSet<>();
+        }
+    }
+}
+``` 
+
+Al implementar  **UserDetailService** automaticamente reemplaza al que se tiene en spring, por lo que en lugar de buscar el que implementa spring busca el nuestro. 
+
+Notemos que en este caso tenemos un objeto user creado por nosotros, a la hora de intentar autenticarlo le pasamos todos los campos, pero esto no es necesario, no es necesario pasar todos los campos solamente aquellos que **org.springframework.security.core.userdetails.User()** requiera.
+
+Notemos como tenemos que si o si mappear las autorizaciones creadas por nosotros al tipo **SimpleGrantedAuthority**
+
+
+Con esto ya tenemos implementada UserDetailsService como SecurityManager, **IMPORTANTE** no tener **configure(AuthenticationManagerBuilder auth)** porque si overrideamos eso, utiliza el SecurityManager que nosotros implementemos pero como  UserDetailsService es el por default, no es necesario hacerlo.
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
