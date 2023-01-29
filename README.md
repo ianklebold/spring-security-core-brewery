@@ -707,6 +707,7 @@ Notemos como tenemos que si o si mappear las autorizaciones creadas por nosotros
 Con esto ya tenemos implementada UserDetailsService como SecurityManager, **IMPORTANTE** no tener **configure(AuthenticationManagerBuilder auth)** en **SecurityConfig.java** porque si overrideamos eso, utiliza el SecurityManager que nosotros implementemos pero como  UserDetailsService es el por default, no es necesario hacerlo.
 
 
+### User ROLES
 
 
 
